@@ -37,10 +37,12 @@ def is_close(x: float, y: float) -> float:
 
 def sigmoid(x: float) -> float:
     if x >= 0:
-        return 1.0 / (1.0 + math.exp(-x))
+        result = 1.0 / (1.0 + math.exp(-x))
     else:
         exp_x = math.exp(x)
-        return exp_x / (1.0 + exp_x)
+        result = exp_x / (1.0 + exp_x)
+
+    return min(1.0 - 1e-15, max(1e-15 , result))
 
 def relu(x: float) -> float:
     return max(0.0, x)
