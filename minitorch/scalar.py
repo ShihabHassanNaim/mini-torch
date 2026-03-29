@@ -5,8 +5,10 @@ Scalar class for autodifferentiation on single values.
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence, Tuple, Type, Union
+from .scalar_functions import Add, Mul, Neg, Inv, Log, Exp, Sigmoid, ReLU
 
-from .autodiff import Variable, History, Context
+
+from .autodiff import Variable, History
 
 
 @dataclass
@@ -137,3 +139,13 @@ class Context:
     @property
     def saved_values(self) -> Tuple[float, ...]:
         return self._saved_values
+
+def backward(self, deriv: float = 1.0) -> None:
+    """
+    Compute gradients for all variables in the computation graph.
+
+    Args:
+        deriv: Gradient of this scalar (default 1.0)
+    """
+    from .autodiff import backpropagate
+    backpropagate(self, deriv)

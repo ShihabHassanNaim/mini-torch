@@ -1,2 +1,2 @@
-from .autodiff import central_difference, topological_sort, backpropagate
+from .autodiff import central_difference
 from .scalar import Scalar
