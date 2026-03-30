@@ -124,6 +124,17 @@ class Scalar(Variable):
     def relu(self) -> Scalar:
         return ReLU.apply(self)
 
+    def backward(self, deriv: float = 1.0) -> None:
+        """
+        Compute gradients for all variables in the computation graph.
+
+        Args:
+            deriv: Gradient of this scalar (default 1.0)
+        """
+        from .autodiff import backpropagate
+        backpropagate(self, deriv)
+
+
 
 class Context:
     """
@@ -140,12 +151,3 @@ class Context:
     def saved_values(self) -> Tuple[float, ...]:
         return self._saved_values
 
-def backward(self, deriv: float = 1.0) -> None:
-    """
-    Compute gradients for all variables in the computation graph.
-
-    Args:
-        deriv: Gradient of this scalar (default 1.0)
-    """
-    from .autodiff import backpropagate
-    backpropagate(self, deriv)
