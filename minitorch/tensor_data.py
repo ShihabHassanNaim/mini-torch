@@ -36,8 +36,10 @@ def index_to_position(index: Index, strides: Strides) -> int:
     # TODO: Implement for Task 2.1
     # Hint: The position is the dot product of index and strides
     # Example: index=[1, 2], strides=[4, 1] -> position = 1*4 + 2*1 = 6
-    position = ___  # Q1: What operation combines index and strides?
-    return ___      # Q2: Return type should be int
+    position = 0  # Q1: What operation combines index and strides?
+    for i, s in zip(index, strides):
+        position += i * s
+    return int(position)     # Q2: Return type should be int
 
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
@@ -62,9 +64,95 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     # Example: ordinal=5, shape=(2,3) -> out_index=[1, 2]
     #   5 % 3 = 2 (last index)
     #   5 // 3 = 1 (remaining ordinal for next dimension)
-
     cur_ord = ordinal
     for i in range(len(shape) - 1, -1, -1):
-        out_index[i] = ___  # Q3: What operation gives the index for dimension i?
-        cur_ord = ___       # Q4: How do you get the remaining ordinal?
+        out_index[i] = cur_ord % shape[i]
+        cur_ord = cur_ord // shape[i]
+
+    for i in range(len(shape) - 1, -1, -1):
+        out_index[i] = cur_ord % shape[i]
+        cur_ord = cur_ord // shape[i]      # Q4: How do you get the remaining ordinal?
   
+
+
+class TensorData:
+    _storage: Storage
+    _strides: Strides
+    _shape: Shape
+    strides: UserStrides
+    shape: UserShape
+    dims: int
+
+    def __init__(
+        self,
+        storage: Union[Sequence[float], Storage],
+        shape: UserShape,
+        strides: Optional[UserStrides] = None,
+    ):
+        if isinstance(storage, np.ndarray):
+            self._storage = storage
+        else:
+            self._storage = array(storage, dtype=float64)
+
+        if strides is None:
+            strides = strides_from_shape(shape)
+
+        assert isinstance(strides, tuple), "Strides must be tuple"
+        assert isinstance(shape, tuple), "Shape must be tuple"
+        if len(strides) != len(shape):
+            raise IndexingError(f"Len of strides {strides} must match {shape}.")
+
+        self._strides = array(strides)
+        self._shape = array(shape)
+        self.strides = strides
+        self.dims = len(strides)
+        self.size = int(prod(shape))
+        self.shape = shape
+        assert len(self._storage) == self.size
+
+    # In TensorData class:
+    def permute(self, *order: int) -> TensorData:
+        """Permute tensor dimensions."""
+        assert list(sorted(order)) == list(range(len(self.shape)))
+
+        new_shape = tuple(self.shape[o] for o in order)
+        new_strides = tuple(self.strides[o] for o in order)
+
+        return TensorData(self._storage, new_shape, new_strides)
+   
+def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
+    """Broadcast two shapes to create a new union shape."""
+    result = []
+    len1, len2 = len(shape1), len(shape2)
+    max_len = max(len1, len2)
+
+    for i in range(max_len):
+        d1 = shape1[len1 - 1 - i] if i < len1 else 1
+        d2 = shape2[len2 - 1 - i] if i < len2 else 1
+
+        if d1 == d2:
+            result.append(d1)
+        elif d1 == 1:
+            result.append(d2)
+        elif d2 == 1:
+            result.append(d1)
+        else:
+            raise IndexingError(f"Cannot broadcast shapes {shape1} and {shape2}")
+
+    return tuple(reversed(result))
+
+
+def broadcast_index(
+    big_index: Index,
+    big_shape: Shape,
+    shape: Shape,
+    out_index: OutIndex
+) -> None:
+    """Convert index from broadcasted shape to original shape."""
+    offset = len(big_shape) - len(shape)
+
+    for i in range(len(shape)):
+        if shape[i] == 1:
+            out_index[i] = 0
+        else:
+            out_index[i] = big_index[i + offset]
