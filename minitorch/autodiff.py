@@ -52,7 +52,24 @@ class History:
     ctx: Optional["Context"] = None
     inputs: Sequence["Variable"] = ()
 
+@dataclass
+class Context:
+    """
+    Context class is used by `Function` to store information during the forward pass.
+    """
 
+    no_grad: bool = False
+    saved_values: Tuple[Any, ...] = ()
+
+    def save_for_backward(self, *values: Any) -> None:
+        "Store the given `values` if they need to be used during backpropagation."
+        if self.no_grad:
+            return
+        self.saved_values = values
+
+    @property
+    def saved_tensors(self) -> Tuple[Any, ...]:
+        return self.saved_values
 
 
 
@@ -109,7 +126,7 @@ def backpropagate(final_var: Variable, deriv: float = 1.0) -> None:
         var, d = stack.pop()
 
         # accumulate gradient
-        if hasattr(var, "accumulate_derivative"):
+        if var.is_leaf():
             var.accumulate_derivative(d)
 
         # stop if leaf
@@ -159,47 +176,3 @@ def topological_sort(variable: Variable) -> List[Variable]:
 
     visit(variable)
     return order
-
-
-def backpropagate(variable: Variable, deriv: float = 1.0) -> None:
-    """
-    Run backpropagation starting from variable.
-
-    Computes gradients for all leaf variables in the computation graph.
-
-    Args:
-        variable: Output variable to differentiate (e.g., loss)
-        deriv: Gradient of variable (default 1.0 for scalar loss)
-    """
-    # Get variables in topological order
-    sorted_vars = topological_sort(variable)
-
-    # Process in REVERSE topological order (output first)
-    sorted_vars = list(reversed(sorted_vars))  # Q3: Reverse what?
-
-    # Initialize gradient of output
-    variable.derivative = deriv
-
-    for var in sorted_vars:
-        if var.is_leaf():
-            # Leaf variables just accumulate gradients, nothing to propagate
-            continue
-
-        if var.derivative is None:
-            # No gradient reached this node (disconnected)
-            continue
-
-        # Get the function that created this variable
-        history = var.history
-        if history is None or history.last_fn is None:
-            continue
-
-        # Call backward to get gradients for inputs
-        backward_fn = history.last_fn.backward
-        ctx = history.ctx
-        input_grads = backward_fn(history.ctx, var.derivative)  # Q4: Pass what context?
-
-        # Accumulate gradients to input variables
-        for input_var, grad in zip(history.inputs, input_grads):
-            if grad is not None:
-                input_var.accumulate_derivative(grad)  # Q5: Accumulate what?     
